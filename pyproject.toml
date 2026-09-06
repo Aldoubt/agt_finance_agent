@@ -3,7 +3,24 @@ name = "agt-finance-agent"
 version = "0.1.0"
 description = "AI driven purchase document intelligence agent"
 requires-python = ">=3.10"
+dependencies = [
+    "PyMuPDF",
+    "PyYAML",
+    "pytest",
+    "openpyxl",
+    "python-docx",
+    "Pillow"
+]
+
+[project.optional-dependencies]
+ocr = ["rapidocr_onnxruntime>=1.4,<2"]
+vision = ["torch>=2.2", "transformers>=4.45,<5", "safetensors>=0.4"]
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "agt_finance_agent*"]
+namespaces = true

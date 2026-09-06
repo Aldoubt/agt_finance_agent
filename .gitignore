@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+dist/
+build/
+
+# Runtime / benchmark outputs are kept outside the repository.
+finance_workspace/

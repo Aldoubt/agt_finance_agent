@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import fitz  # PyMuPDF
+import pymupdf
 
 
 class PDFTextExtractor:
@@ -16,7 +16,7 @@ class PDFTextExtractor:
             raise FileNotFoundError(path)
 
         pages = []
-        with fitz.open(path) as doc:
+        with pymupdf.open(path) as doc:
             for page in doc:
                 pages.append(page.get_text("text"))
 

@@ -6,8 +6,30 @@ text lines and contains all classification/field extraction rules.
 """
 
 from dataclasses import asdict, dataclass
+import ctypes
+import os
 from pathlib import Path
 import re
+import sys
+
+
+_FROZEN_DLL_DIR_HANDLE = None
+
+
+def _prepare_frozen_onnxruntime() -> None:
+    """Make ONNX Runtime DLLs discoverable in a PyInstaller Windows bundle."""
+    global _FROZEN_DLL_DIR_HANDLE
+    if os.name != "nt" or not getattr(sys, "frozen", False):
+        return
+    bundle_root = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    capi = bundle_root / "onnxruntime" / "capi"
+    if not capi.is_dir():
+        return
+    if hasattr(os, "add_dll_directory") and _FROZEN_DLL_DIR_HANDLE is None:
+        _FROZEN_DLL_DIR_HANDLE = os.add_dll_directory(str(capi))
+    runtime_dll = capi / "onnxruntime.dll"
+    if runtime_dll.exists():
+        ctypes.WinDLL(str(runtime_dll))
 
 
 @dataclass
@@ -79,6 +101,7 @@ class ScreenshotParser:
         return result
 
     def parse(self, image_path: str | Path) -> ScreenshotResult:
+        _prepare_frozen_onnxruntime()
         try:
             from rapidocr_onnxruntime import RapidOCR
         except ImportError as exc:

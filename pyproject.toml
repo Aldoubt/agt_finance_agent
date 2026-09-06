@@ -15,6 +15,10 @@ dependencies = [
 [project.optional-dependencies]
 ocr = ["rapidocr_onnxruntime>=1.4,<2"]
 vision = ["torch>=2.2", "transformers>=4.45,<5", "safetensors>=0.4"]
+build = ["pyinstaller>=6.0,<7"]
+
+[project.gui-scripts]
+agt-finance-agent = "agt_finance_agent.app:main"
 
 [build-system]
 requires = ["setuptools>=68"]

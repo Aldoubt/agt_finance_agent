@@ -6,6 +6,8 @@ __pycache__/
 venv/
 dist/
 build/
+release/
+.pyinstaller/
 
 # Runtime / benchmark outputs are kept outside the repository.
 finance_workspace/

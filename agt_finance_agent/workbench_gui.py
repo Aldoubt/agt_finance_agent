@@ -629,6 +629,12 @@ class WorkbenchApp:
         self._photo_touched = False
         self._photo_asset_id = None
         self.page.clear()
+        self.status({
+            1: "选择文件或导入材料文件夹；照片可以先保存，发票稍后再补。",
+            2: "对照发票原件核对商品和金额，确认后继续。",
+            3: "核对照片或截图的类型，并勾选它对应的商品。",
+            4: "检查预览和待处理提示，再生成归档文件夹。",
+        }[self.step])
         {1: self._build_import, 2: self._build_invoice_review, 3: self._build_photo_review, 4: self._build_export_preview}[self.step]()
         self._update_navigation()
 

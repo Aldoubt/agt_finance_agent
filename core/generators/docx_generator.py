@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
 
 from PIL import Image, ImageOps
@@ -59,11 +60,20 @@ def _fit_image(path: Path, *, max_width: float, max_height: float) -> tuple[floa
 
 
 def _add_picture(paragraph, path: Path, *, max_width: float, max_height: float) -> bool:
-    if not path.exists() or path.suffix.lower() not in IMAGE_SUFFIXES:
+    if not path.is_file():
         return False
     width, height = _fit_image(path, max_width=max_width, max_height=max_height)
+    # Embed a normalized copy: python-docx cannot directly read every format
+    # Pillow accepts (notably WebP), and EXIF orientation must be applied to the
+    # actual picture, not just to the size calculation.
+    payload = BytesIO()
+    with Image.open(path) as original:
+        oriented = ImageOps.exif_transpose(original)
+        mode = "RGBA" if "A" in oriented.getbands() else "RGB"
+        oriented.convert(mode).save(payload, format="PNG")
+    payload.seek(0)
     run = paragraph.add_run()
-    run.add_picture(str(path), width=Inches(width), height=Inches(height))
+    run.add_picture(payload, width=Inches(width), height=Inches(height))
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     paragraph.paragraph_format.space_before = Pt(0)
     paragraph.paragraph_format.space_after = Pt(2)
@@ -102,24 +112,28 @@ class DocxGenerator:
         heading2.paragraph_format.space_after = Pt(2)
 
     @staticmethod
-    def _photo_groups(items) -> tuple[dict[str, list[str]], list[str], list[str]]:
+    def _photo_groups(items, *, explicit_item_numbers=False) -> tuple[dict[str, list[str]], list[str], list[str]]:
         groups: dict[str, list[str]] = {}
         order: list[str] = []
         missing_items: list[str] = []
-        for item in items:
+        for index, item in enumerate(items, 1):
+            caption = (
+                f"{getattr(item, 'sequence', index):02d} {item.name}"
+                if explicit_item_numbers else item.name
+            )
             if not item.photo_files:
-                missing_items.append(item.name)
+                missing_items.append(caption)
                 continue
             for photo in item.photo_files:
                 if photo not in groups:
                     groups[photo] = []
                     order.append(photo)
-                if item.name not in groups[photo]:
-                    groups[photo].append(item.name)
+                if caption not in groups[photo]:
+                    groups[photo].append(caption)
         return groups, order, missing_items
 
     @staticmethod
-    def _proof_groups(items) -> list[dict]:
+    def _proof_groups(items, *, explicit_item_numbers=False) -> list[dict]:
         groups: dict[str, list] = {}
         order: list[str] = []
         for item in items:
@@ -141,13 +155,16 @@ class DocxGenerator:
                 for payment in item.payment_files:
                     if payment not in payments:
                         payments.append(payment)
-            cards.append(
-                {
-                    "names": [item.name for item in grouped_items],
-                    "proofs": proofs,
-                    "payments": payments,
-                }
-            )
+            card = {
+                "names": [item.name for item in grouped_items],
+                "proofs": proofs,
+                "payments": payments,
+            }
+            if explicit_item_numbers:
+                invoice_sequence = grouped_items[0].invoice_sequence
+                labels = " + ".join(f"{item.sequence:02d} {item.name}" for item in grouped_items)
+                card["title"] = f"发票 {invoice_sequence:02d} · 商品 {labels}"
+            cards.append(card)
         return cards
 
     def _render_proof_card(self, cell, card: dict, index: int) -> None:
@@ -157,7 +174,7 @@ class DocxGenerator:
         title = cell.paragraphs[0]
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
         title.paragraph_format.space_after = Pt(2)
-        run = title.add_run(f"{index:02d} " + " + ".join(card["names"]))
+        run = title.add_run(card.get("title") or f"{index:02d} " + " + ".join(card["names"]))
         run.bold = True
         run.font.size = Pt(8.5)
 
@@ -225,7 +242,7 @@ class DocxGenerator:
                     page_start + offset + 1,
                 )
 
-    def generate(self, items, output_path: str | Path) -> Path:
+    def generate(self, items, output_path: str | Path, *, explicit_item_numbers=False) -> Path:
         output = Path(output_path)
         output.parent.mkdir(parents=True, exist_ok=True)
 
@@ -236,10 +253,13 @@ class DocxGenerator:
         count_p.paragraph_format.space_after = Pt(2)
         doc.add_heading("一、商品名称与实物图", level=1)
 
-        photo_groups, photo_order, missing_items = self._photo_groups(items)
+        photo_groups, photo_order, missing_items = self._photo_groups(
+            items, explicit_item_numbers=explicit_item_numbers,
+        )
         for index, photo in enumerate(photo_order, 1):
             names = " + ".join(photo_groups[photo])
-            heading = doc.add_heading(f"{index:02d} {names}", level=2)
+            caption = f"对应商品：{names}" if explicit_item_numbers else f"{index:02d} {names}"
+            heading = doc.add_heading(caption, level=2)
             heading.paragraph_format.keep_with_next = True
             path = Path(photo)
             picture_p = doc.add_paragraph()
@@ -260,8 +280,9 @@ class DocxGenerator:
         # page was before section 1, not this intentional section separator.
         doc.add_page_break()
         doc.add_heading("二、购买凭证与支付凭证", level=1)
-        self._render_proof_pages(doc, self._proof_groups(items))
+        self._render_proof_pages(
+            doc, self._proof_groups(items, explicit_item_numbers=explicit_item_numbers),
+        )
 
         doc.save(output)
         return output
-

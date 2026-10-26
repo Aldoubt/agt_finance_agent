@@ -1,6 +1,49 @@
-# AGT Finance Agent
+# AGT Finance Agent · 采购报销材料整理
 
-面向采购/财务归档场景的文档智能整理工具。V0.1 已支持从一个无序采购资料文件夹中识别发票、实物照片和电商购买凭证，并通过人工复核 GUI 完成关系确认，最后生成一个标准化归档目录。
+把邮箱下载的发票、收货照片和淘宝订单截图整理成一个可核对的报销材料文件夹。
+
+## Windows V0.2 交互预览
+
+[下载 Windows 预览包](https://github.com/Aldoubt/agt_finance_agent/releases) · [首次使用说明](docs/V0.2_使用说明.md)
+
+解压完整压缩包，双击 **开始整理.bat** 或 **AGTFinanceAgent.exe**。保留旁边的 `_internal` 文件夹。
+第一次可点“查看示例”，用独立的虚构材料体验完整流程；再点“开始整理”添加自己的材料。
+
+**放入材料 → 核对清单 → 确认照片 → 预览导出**
+
+- 文件名乱码、数字或未命名都可以，不用提前重命名。
+- 照片先到、发票后补也能保存；首页可以继续上次整理。
+- 发票字段和商品可人工修改，照片/订单/支付凭证可关联多个商品。
+- 只有快递外箱时明确提示补拍商品，外包装不计为商品实物图。
+- 材料复制到本机批次工作区，确认后保存；重复导入不重复计费。
+- 人工确认的发票顺序统一用于 PDF、Word 和 Excel。
+- 导出先检查金额与文件，再完整生成；同金额目录不会混入旧文件。
+
+### 保持原来的输出格式
+
+总金额目录内只包含顺序命名的发票 PDF、`实物图.docx`、`采购统计.xlsx`。
+Excel 仍是八列：序号、商品名称、金额、发票是否存在、实物图是否存在、购买凭证是否存在、支付凭证是否存在、发票文件；底部保留总金额。
+购买/支付凭证在 Word 内，支付凭证继续为选填项。
+
+### 开发与构建
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[ocr,build,test]"
+python -m pytest -q tests
+python -m agt_finance_agent.app --demo
+.\tools\build_windows_v0_2.ps1 -Python ".\.venv\Scripts\python.exe"
+```
+
+默认启动 V0.2 向导。`--legacy-review` 可打开旧版照片复核，`--analysis-only --input-dir <目录>` 保留旧版批处理入口。
+[实现与验证说明](docs/v0_2_implementation.md)。预览版使用合成材料完成自动验证，真实票据和 Windows 人工交互仍需试用。
+
+---
+
+## V0.1 历史说明
+
+以下保留旧版工作流与验收样本记录，V0.2 使用上面的新入口。
 
 ## V0.1 工作流
 
@@ -94,4 +137,3 @@ python tools\run_v0_1_acceptance.py <输入目录> `
 
 - V0.2：视觉语义模型、更多凭证类型、产品化配置与日志
 - V0.3：FastAPI / MCP / Agent Tool 接口
-

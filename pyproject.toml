@@ -1,7 +1,7 @@
 [project]
 name = "agt-finance-agent"
-version = "0.1.0"
-description = "AI driven purchase document intelligence agent"
+version = "0.2.0rc1"
+description = "Guided, local-first purchase document review and reimbursement archive"
 requires-python = ">=3.10"
 dependencies = [
     "PyMuPDF",
@@ -16,6 +16,7 @@ dependencies = [
 ocr = ["rapidocr_onnxruntime>=1.4,<2"]
 vision = ["torch>=2.2", "transformers>=4.45,<5", "safetensors>=0.4"]
 build = ["pyinstaller>=6.0,<7"]
+test = ["pytest>=8,<10"]
 
 [project.gui-scripts]
 agt-finance-agent = "agt_finance_agent.app:main"

@@ -13,9 +13,6 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import traceback
 
-from core.pipeline.relation_recovery_pipeline import RelationRecoveryPipeline
-from core.review.photo_review_gui import launch
-
 from agt_finance_agent import __version__
 
 
@@ -63,6 +60,8 @@ def validate_input_dir(input_dir: str | Path) -> dict:
 
 def prepare_case(paths: CasePaths) -> dict:
     """Run deterministic document/relation analysis before human review."""
+    from core.pipeline.relation_recovery_pipeline import RelationRecoveryPipeline
+
     paths.workspace.mkdir(parents=True, exist_ok=True)
     paths.output_root.mkdir(parents=True, exist_ok=True)
     return RelationRecoveryPipeline().run(paths.input_dir, paths.relation_report)
@@ -194,6 +193,8 @@ def main(argv: list[str] | None = None) -> int:
     report = _run_analysis_window(paths, input_summary)
     if report is None:
         return 3
+    from core.review.photo_review_gui import launch
+
     launch(
         paths.input_dir,
         paths.relation_report,

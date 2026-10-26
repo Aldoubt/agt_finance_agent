@@ -58,13 +58,15 @@ Set-Content -Path (Join-Path $PackageRoot "开始整理.bat") -Encoding ascii -V
 
 Write-Host "[4/5] Testing the packaged EXE and bundled OCR models..."
 $SmokeRoot = Join-Path $WorkRoot ("smoke-" + [guid]::NewGuid().ToString("N"))
+$reportFile = Join-Path $SmokeRoot "self_test_report.json"
 $arguments = "--self-test --check-ocr --workspace-root `"$SmokeRoot`""
 $process = Start-Process -FilePath (Join-Path $PackageRoot "AGTFinanceAgent.exe") -ArgumentList $arguments -PassThru
 if (-not $process.WaitForExit(180000)) {
+    if (Test-Path $reportFile) { Get-Content $reportFile -Raw -Encoding utf8 | Write-Host }
+    & $Python -c "from PIL import ImageGrab; ImageGrab.grab().save(r'.pyinstaller-v0.2/packaged-timeout.png')"
     $process.Kill()
     throw "Packaged application smoke test exceeded 180 seconds."
 }
-$reportFile = Join-Path $SmokeRoot "self_test_report.json"
 if (-not (Test-Path $reportFile)) { throw "Packaged application did not write a self-test report." }
 $report = Get-Content $reportFile -Raw -Encoding utf8 | ConvertFrom-Json
 if ($process.ExitCode -ne 0 -or -not $report.success -or -not $report.ocr_checked) {

@@ -32,6 +32,7 @@ jobs:
         shell: pwsh
         run: ./tools/build_windows_v0_2.ps1 -SkipInstall -SkipTests
       - name: Upload Windows package and evidence
+        if: always()
         uses: actions/upload-artifact@v7.0.2
         with:
           name: AGT-Finance-V0.2-Windows
@@ -40,6 +41,9 @@ jobs:
             release/*.sha256.txt
             release/windows-build-verification.json
             ${{ runner.temp }}/agt-finance-screens/
+            .pyinstaller-v0.2/smoke-*/self_test_report.json
+            .pyinstaller-v0.2/packaged-timeout.png
+          include-hidden-files: true
           if-no-files-found: error
 
   publish-preview:

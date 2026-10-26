@@ -1,4 +1,4 @@
-"""Windows desktop entry point for AGT Finance Agent V0.1."""
+"""Desktop entry point: guided V0.2 workflow, with the legacy CLI retained."""
 
 from __future__ import annotations
 
@@ -12,9 +12,6 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import traceback
-
-from core.pipeline.relation_recovery_pipeline import RelationRecoveryPipeline
-from core.review.photo_review_gui import launch
 
 from agt_finance_agent import __version__
 
@@ -63,6 +60,8 @@ def validate_input_dir(input_dir: str | Path) -> dict:
 
 def prepare_case(paths: CasePaths) -> dict:
     """Run deterministic document/relation analysis before human review."""
+    from core.pipeline.relation_recovery_pipeline import RelationRecoveryPipeline
+
     paths.workspace.mkdir(parents=True, exist_ok=True)
     paths.output_root.mkdir(parents=True, exist_ok=True)
     return RelationRecoveryPipeline().run(paths.input_dir, paths.relation_report)
@@ -143,7 +142,29 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--input-dir", type=Path, default=None)
     parser.add_argument("--workspace-root", type=Path, default=None)
     parser.add_argument("--analysis-only", action="store_true")
+    parser.add_argument("--legacy-review", action="store_true", help="Open the V0.1 photo review workflow")
+    parser.add_argument("--demo", action="store_true", help="Open an editable, fictional sample batch")
+    parser.add_argument("--self-test", action="store_true", help="Verify a packaged application in an isolated workspace")
+    parser.add_argument("--check-ocr", action="store_true", help="Include the bundled OCR runtime in --self-test")
     args = parser.parse_args(argv)
+
+    if args.self_test:
+        from agt_finance_agent.self_test import run_self_test
+        return run_self_test(args.workspace_root, check_ocr=args.check_ocr)
+
+    if not args.analysis_only and not args.legacy_review:
+        if os.name == "nt":
+            try:
+                import ctypes
+                ctypes.windll.shcore.SetProcessDpiAwareness(1)
+            except (AttributeError, OSError):
+                pass
+        from agt_finance_agent.workbench_gui import launch_workbench
+        return launch_workbench(
+            workspace_root=args.workspace_root,
+            input_dir=args.input_dir,
+            demo=args.demo,
+        ) or 0
 
     input_dir = args.input_dir or _choose_input_dir()
     if input_dir is None:
@@ -172,6 +193,8 @@ def main(argv: list[str] | None = None) -> int:
     report = _run_analysis_window(paths, input_summary)
     if report is None:
         return 3
+    from core.review.photo_review_gui import launch
+
     launch(
         paths.input_dir,
         paths.relation_report,
@@ -183,4 +206,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    import multiprocessing
+
+    multiprocessing.freeze_support()
     raise SystemExit(main())

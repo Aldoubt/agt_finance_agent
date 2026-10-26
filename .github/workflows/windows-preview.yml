@@ -1,0 +1,87 @@
+name: Windows desktop preview
+
+on:
+  push:
+    branches: [feature/finance-v0.2-onboarding]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: '3.11'
+          architecture: x64
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install runtime and test dependencies
+        run: python -m pip install -e ".[ocr,build,test]"
+      - name: Regression tests
+        run: python -m pytest -q tests
+      - name: Desktop wizard smoke test
+        run: python tools/smoke_workbench_gui.py --workspace-root "${{ runner.temp }}/agt-finance-gui" --screenshot-dir "${{ runner.temp }}/agt-finance-screens"
+      - name: Verify OCR and export in the source runtime
+        timeout-minutes: 2
+        run: python -m agt_finance_agent.app --self-test --check-ocr --workspace-root "${{ runner.temp }}/agt-finance-source-selftest"
+      - name: Build and verify standalone Windows app
+        shell: pwsh
+        run: ./tools/build_windows_v0_2.ps1 -SkipInstall -SkipTests
+      - name: Upload Windows package and evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: AGT-Finance-V0.2-Windows
+          path: |
+            release/*.zip
+            release/*.sha256.txt
+            release/windows-build-verification.json
+            ${{ runner.temp }}/agt-finance-screens/
+            ${{ runner.temp }}/agt-finance-source-selftest/self_test_report.json
+            .pyinstaller-v0.2/smoke-*/self_test_report.json
+            .pyinstaller-v0.2/packaged-timeout.png
+          include-hidden-files: true
+          if-no-files-found: error
+
+  publish-preview:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: AGT-Finance-V0.2-Windows
+          path: package
+      - name: Publish the tested Windows preview
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          short_sha="${GITHUB_SHA:0:7}"
+          tag="v0.2.0-preview-${short_sha}"
+          cat > release-notes.md <<'NOTES'
+          Windows 交互预览：解压完整压缩包，双击“开始整理.bat”或 AGTFinanceAgent.exe。
+
+          首次使用可点“查看示例”。实际流程：放入材料 → 核对清单 → 确认照片 → 预览导出。
+          支持乱码文件名、照片先存、后补发票、人工关联和继续整理；Excel 保持原有八列。
+
+          包内包含 OCR 运行时。发布前运行源代码回归、真实窗口冒烟和打包 EXE 的 OCR/归档自检。
+          这是预览版，真实采购材料和 Windows 人工使用体验仍需用户试用。
+          NOTES
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title "V0.2 Windows 交互预览（${short_sha}）" --notes-file release-notes.md
+          fi
+          mapfile -d '' files < <(find package -type f \( -name '*.zip' -o -name '*.sha256.txt' -o -name 'windows-build-verification.json' \) -print0)
+          test "${#files[@]}" -ge 3
+          gh release upload "$tag" "${files[@]}" --clobber

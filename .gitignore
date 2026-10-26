@@ -8,6 +8,7 @@ dist/
 build/
 release/
 .pyinstaller/
+.pyinstaller-v0.2/
 
 # Runtime / benchmark outputs are kept outside the repository.
 finance_workspace/

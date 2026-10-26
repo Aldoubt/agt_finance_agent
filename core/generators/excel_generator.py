@@ -18,7 +18,10 @@ class ExcelGenerator:
         "发票文件",
     ]
 
-    def generate(self, items, output_path: str | Path, total_amount: float) -> Path:
+    def generate(
+        self, items, output_path: str | Path, total_amount: float,
+        *, invoice_filename_map: dict[str, str] | None = None,
+    ) -> Path:
         output = Path(output_path)
         output.parent.mkdir(parents=True, exist_ok=True)
 
@@ -29,17 +32,18 @@ class ExcelGenerator:
         for cell in ws[1]:
             cell.font = Font(bold=True)
 
+        filename_map = invoice_filename_map or {}
         for index, item in enumerate(items, 1):
             ws.append(
                 [
                     index,
                     item.name,
-                    item.gross_amount,
+                    float(item.gross_amount),
                     "是" if item.invoice_files else "否",
                     "是" if item.photo_files else "否",
                     "是" if item.purchase_proof_files else "否",
                     "是" if item.payment_files else "否",
-                    ",".join(Path(x).name for x in item.invoice_files),
+                    ",".join(filename_map.get(str(x), Path(x).name) for x in item.invoice_files),
                 ]
             )
 
@@ -48,10 +52,16 @@ class ExcelGenerator:
         ws.cell(ws.max_row, 1).font = Font(bold=True)
         ws.cell(ws.max_row, 3).font = Font(bold=True)
 
+        # Names from OCR/manual entry are literal text, even if they begin with
+        # "=".  Preserve the existing eight columns rather than adding metadata.
+        for row in ws.iter_rows():
+            for cell in row:
+                if isinstance(cell.value, str):
+                    cell.data_type = "s"
+
         widths = [10, 42, 14, 16, 18, 20, 20, 35]
         for col, width in enumerate(widths, 1):
             ws.column_dimensions[ws.cell(1, col).column_letter].width = width
 
         wb.save(output)
         return output
-

@@ -42,6 +42,8 @@ def run_self_test(workspace_root=None, *, check_ocr: bool = False) -> int:
             from core.parser.screenshot_parser import ScreenshotParser
             sample = next(asset for asset in session.assets if asset["kind"] == "purchase_proof")
             parsed = ScreenshotParser().parse(session.asset_path(sample))
+            if not parsed.text.strip():
+                raise RuntimeError("Bundled OCR returned no text for the sample order screenshot.")
             report["ocr_checked"] = True
             report["ocr_text_characters"] = len(parsed.text)
 

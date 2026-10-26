@@ -35,7 +35,7 @@ Write-Host "[3/5] Building the Windows desktop application..."
     --noconfirm --clean --windowed --onedir `
     --name "AGTFinanceAgent" `
     --distpath $DistRoot --workpath (Join-Path $WorkRoot "build") --specpath $WorkRoot `
-    --collect-all rapidocr_onnxruntime --collect-all onnxruntime `
+    --collect-all rapidocr_onnxruntime --collect-all onnxruntime --collect-all pymupdf `
     --hidden-import tkinter --hidden-import tkinter.ttk `
     --hidden-import agt_finance_agent.workbench_gui `
     --hidden-import core.workbench.demo `

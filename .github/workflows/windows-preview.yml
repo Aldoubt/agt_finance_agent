@@ -28,6 +28,9 @@ jobs:
         run: python -m pytest -q tests
       - name: Desktop wizard smoke test
         run: python tools/smoke_workbench_gui.py --workspace-root "${{ runner.temp }}/agt-finance-gui" --screenshot-dir "${{ runner.temp }}/agt-finance-screens"
+      - name: Verify OCR and export in the source runtime
+        timeout-minutes: 2
+        run: python -m agt_finance_agent.app --self-test --check-ocr --workspace-root "${{ runner.temp }}/agt-finance-source-selftest"
       - name: Build and verify standalone Windows app
         shell: pwsh
         run: ./tools/build_windows_v0_2.ps1 -SkipInstall -SkipTests
@@ -41,6 +44,7 @@ jobs:
             release/*.sha256.txt
             release/windows-build-verification.json
             ${{ runner.temp }}/agt-finance-screens/
+            ${{ runner.temp }}/agt-finance-source-selftest/self_test_report.json
             .pyinstaller-v0.2/smoke-*/self_test_report.json
             .pyinstaller-v0.2/packaged-timeout.png
           include-hidden-files: true
